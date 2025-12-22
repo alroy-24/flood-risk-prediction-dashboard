@@ -76,7 +76,7 @@ The system allows users to simulate future rainfall scenarios by adjusting rainf
 
 ▶️ Run Locally
 # Clone the repository
-git clone https://github.com/alroyp_2405/flood-risk-prediction-dashboard.git
+git clone https://github.com/alroy-24/flood-risk-prediction-dashboard.git
 cd flood-risk-prediction-dashboard
 
 # Install dependencies
@@ -95,6 +95,7 @@ streamlit run app.py
 - Internet connection required for location search (OpenStreetMap)
 
 - Model file (flood_xgb_model.pkl) must be present in the project root
+
 
 
 
