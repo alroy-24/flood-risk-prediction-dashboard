@@ -1,0 +1,8 @@
+streamlit
+numpy
+pandas
+joblib
+xgboost
+folium
+streamlit-folium
+requests
