@@ -64,12 +64,15 @@ The system allows users to simulate future rainfall scenarios by adjusting rainf
 ---
 
 
-⚠️ Limitations & Future Improvements
+##⚠️ Limitations & Future Improvements
 
--Currently uses simulated rainfall inputs rather than live forecasts
--Can be extended with real-time weather APIs
--Integration with government flood warning systems
--Expansion to multi-location batch risk analysis
+- Currently uses simulated rainfall inputs rather than live forecasts
+- Can be extended with real-time weather APIs
+- Integration with government flood warning systems
+- Expansion to multi-location batch risk analysis
+
+---
+
 
 ## ▶️ Run Locally
 
@@ -82,6 +85,7 @@ pip install -r requirements.txt
 
 3️⃣ Run the application
 streamlit run app.py
+
 
 
 
