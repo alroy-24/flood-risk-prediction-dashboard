@@ -80,11 +80,13 @@ The system allows users to simulate future rainfall scenarios by adjusting rainf
 ```bash
 git clone https://github.com/alroyp_2405/flood-risk-prediction-dashboard.git
 cd flood-risk-prediction-dashboard
-2️⃣ Install dependencies
+
+###2️⃣ Install dependencies
 pip install -r requirements.txt
 
-3️⃣ Run the application
+###3️⃣ Run the application
 streamlit run app.py
+
 
 
 
