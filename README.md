@@ -63,19 +63,6 @@ The system allows users to simulate future rainfall scenarios by adjusting rainf
 
 ---
 
-## ▶️ Run Locally
-
-1️⃣ Clone the repository
-```bash
-git clone https://github.com/YOUR_USERNAME/flood-risk-prediction-dashboard.git
-cd flood-risk-prediction-dashboard
-2️⃣ Install dependencies
-pip install -r requirements.txt
-
-3️⃣ Run the application
-streamlit run app.py
-
----
 
 ⚠️ Limitations & Future Improvements
 
@@ -83,5 +70,20 @@ streamlit run app.py
 -Can be extended with real-time weather APIs
 -Integration with government flood warning systems
 -Expansion to multi-location batch risk analysis
+
+## ▶️ Run Locally
+
+1️⃣ Clone the repository
+```bash
+git clone https://github.com/alroyp_2405/flood-risk-prediction-dashboard.git
+cd flood-risk-prediction-dashboard
+2️⃣ Install dependencies
+pip install -r requirements.txt
+
+3️⃣ Run the application
+streamlit run app.py
+
+
+
 
 
