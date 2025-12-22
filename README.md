@@ -64,7 +64,7 @@ The system allows users to simulate future rainfall scenarios by adjusting rainf
 ---
 
 
-##⚠️ Limitations & Future Improvements
+⚠️ Limitations & Future Improvements
 
 - Currently uses simulated rainfall inputs rather than live forecasts
 - Can be extended with real-time weather APIs
@@ -85,13 +85,17 @@ pip install -r requirements.txt
 # Run the Streamlit app
 streamlit run app.py
 
-##⚠️ Notes
+
+---
+
+⚠️ Notes
 
 - Ensure Python 3.9 or above is installed
 
 - Internet connection required for location search (OpenStreetMap)
 
 - Model file (flood_xgb_model.pkl) must be present in the project root
+
 
 
 
