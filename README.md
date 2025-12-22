@@ -75,35 +75,20 @@ The system allows users to simulate future rainfall scenarios by adjusting rainf
 
 
 ▶️ Run Locally
-1️⃣ Clone the repository
+# Clone the repository
 git clone https://github.com/YOUR_USERNAME/flood-risk-prediction-dashboard.git
 cd flood-risk-prediction-dashboard
 
-2️⃣ Create a virtual environment (optional but recommended)
+# (Optional) Create and activate virtual environment
 python -m venv venv
+venv\Scripts\activate   # Windows
+# source venv/bin/activate  # macOS/Linux
 
-
-Activate the environment
-
-Windows
-
-venv\Scripts\activate
-
-
-macOS / Linux
-
-source venv/bin/activate
-
-3️⃣ Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-4️⃣ Run the application
+# Run the Streamlit app
 streamlit run app.py
-
-
-The dashboard will open automatically in your browser at:
-
-http://localhost:8501
 
 ⚠️ Notes
 
@@ -112,6 +97,7 @@ Ensure Python 3.9 or above is installed
 Internet connection required for location search (OpenStreetMap)
 
 Model file (flood_xgb_model.pkl) must be present in the project root
+
 
 
 
