@@ -20,16 +20,29 @@ st.set_page_config(
 model = joblib.load("flood_xgb_model.pkl")
 
 # -------------------------------------------------
-# OPENSTREETMAP GEOCODING (FREE)
+# SAFE GEOCODING (STREAMLIT CLOUD COMPATIBLE)
 # -------------------------------------------------
 def geocode_location(place):
-    url = "https://nominatim.openstreetmap.org/search"
-    params = {"q": place, "format": "json", "limit": 1}
-    headers = {"User-Agent": "FloodRiskDashboard"}
-    response = requests.get(url, params=params, headers=headers).json()
-    if response:
-        return float(response[0]["lat"]), float(response[0]["lon"])
-    return None, None
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {"q": place, "format": "json", "limit": 1}
+        headers = {"User-Agent": "FloodRiskDashboard"}
+
+        response = requests.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=5
+        )
+
+        response.raise_for_status()
+        data = response.json()
+
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
+
+    except Exception:
+        return None, None
 
 # -------------------------------------------------
 # EXPLAINABLE AI
@@ -51,7 +64,7 @@ def explain_prediction(rainfall, elevation, slope, river):
         explanations.append("• Proximity to a river increases overflow probability.")
 
     if slope < 1:
-        explanations.append("• Flat terrain slows down natural drainage.")
+        explanations.append("• Flat terrain slows natural drainage.")
 
     return explanations
 
@@ -101,7 +114,7 @@ st.caption("Built using Google Earth Engine, XGBoost & Streamlit")
 st.divider()
 
 # -------------------------------------------------
-# SIDEBAR — INPUTS
+# SIDEBAR INPUTS
 # -------------------------------------------------
 with st.sidebar:
     st.header("📥 Input Parameters")
@@ -133,12 +146,12 @@ with st.sidebar:
 
     if st.button("📍 Find Location"):
         lat, lon = geocode_location(location_query)
-        if lat and lon:
+        if lat is not None and lon is not None:
             st.session_state.lat = lat
             st.session_state.lon = lon
             st.success("Location found")
         else:
-            st.error("Location not found")
+            st.error("Location lookup failed. Try again later.")
 
     st.divider()
 
@@ -195,9 +208,9 @@ if st.session_state.prediction is not None:
         else:
             st.error("🔴 HIGH RISK")
 
-    # ---------------------------------------------
+    # -------------------------------------------------
     # TABS
-    # ---------------------------------------------
+    # -------------------------------------------------
     tab1, tab2, tab3 = st.tabs(["🗺️ Map", "🧠 Explanation", "🚨 Alerts"])
 
     with tab1:
