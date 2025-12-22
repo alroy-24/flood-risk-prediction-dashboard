@@ -20,7 +20,7 @@ st.set_page_config(
 model = joblib.load("flood_xgb_model.pkl")
 
 # -------------------------------------------------
-# SAFE GEOCODING (STREAMLIT CLOUD COMPATIBLE)
+# SAFE GEOCODING (BEST-EFFORT)
 # -------------------------------------------------
 def geocode_location(place):
     try:
@@ -28,45 +28,40 @@ def geocode_location(place):
         params = {"q": place, "format": "json", "limit": 1}
         headers = {"User-Agent": "FloodRiskDashboard"}
 
-        response = requests.get(
-            url,
-            params=params,
-            headers=headers,
-            timeout=5
-        )
-
-        response.raise_for_status()
-        data = response.json()
+        r = requests.get(url, params=params, headers=headers, timeout=5)
+        r.raise_for_status()
+        data = r.json()
 
         if data:
             return float(data[0]["lat"]), float(data[0]["lon"])
-
     except Exception:
-        return None, None
+        pass
+
+    return None, None
 
 # -------------------------------------------------
 # EXPLAINABLE AI
 # -------------------------------------------------
 def explain_prediction(rainfall, elevation, slope, river):
-    explanations = []
+    exp = []
 
     if rainfall > 120:
-        explanations.append("• Very high rainfall significantly increases flood risk.")
+        exp.append("• Very high rainfall significantly increases flood risk.")
     elif rainfall > 80:
-        explanations.append("• Moderate rainfall contributes to water accumulation.")
+        exp.append("• Moderate rainfall contributes to surface water accumulation.")
 
     if elevation < 30:
-        explanations.append("• Low elevation makes the area flood-prone.")
+        exp.append("• Low elevation makes the area flood-prone.")
     elif elevation < 50:
-        explanations.append("• Relatively low elevation increases vulnerability.")
+        exp.append("• Relatively low elevation increases vulnerability.")
 
     if river == 1:
-        explanations.append("• Proximity to a river increases overflow probability.")
+        exp.append("• Proximity to a river increases overflow probability.")
 
     if slope < 1:
-        explanations.append("• Flat terrain slows natural drainage.")
+        exp.append("• Flat terrain slows natural drainage.")
 
-    return explanations
+    return exp
 
 # -------------------------------------------------
 # SAFETY RECOMMENDATIONS
@@ -81,14 +76,14 @@ def safety_recommendations(level):
         return [
             "• Avoid low-lying and flood-prone roads.",
             "• Secure valuables and important documents.",
-            "• Monitor rainfall and river level alerts."
+            "• Monitor rainfall and river-level alerts."
         ]
     else:
         return [
             "• High flood risk detected.",
             "• Prepare for evacuation if advised.",
             "• Avoid travel near rivers and waterlogged areas.",
-            "• Follow official disaster management advisories."
+            "• Follow official disaster-management advisories."
         ]
 
 # -------------------------------------------------
@@ -102,15 +97,13 @@ if "prediction" not in st.session_state:
     st.session_state.inputs = {}
 
 # -------------------------------------------------
-# HERO HEADER
+# HEADER
 # -------------------------------------------------
 st.markdown("""
 # 🌊 Flood Risk Prediction Dashboard
 **AI-powered flood risk assessment using satellite-derived data and machine learning**
 """)
-
 st.caption("Built using Google Earth Engine, XGBoost & Streamlit")
-
 st.divider()
 
 # -------------------------------------------------
@@ -127,31 +120,34 @@ with st.sidebar:
     st.divider()
 
     st.subheader("🌧️ What-If Rainfall Simulation")
-    rainfall_delta = st.slider(
-        "Rainfall change (mm)",
-        -50, 100, 0,
-        help="Simulate increased or decreased rainfall"
-    )
-
+    rainfall_delta = st.slider("Rainfall change (mm)", -50, 100, 0)
     simulated_rainfall = max(0, rainfall + rainfall_delta)
     st.caption(f"Scenario rainfall: **{simulated_rainfall} mm**")
 
     st.divider()
 
-    st.subheader("📍 Location Search")
-    location_query = st.text_input(
-        "City, State, Country",
-        value="Guwahati, Assam, India"
-    )
+    st.subheader("📍 Location Search (Best Effort)")
+    location_query = st.text_input("City, State, Country", "Guwahati, Assam, India")
 
     if st.button("📍 Find Location"):
         lat, lon = geocode_location(location_query)
-        if lat is not None and lon is not None:
+        if lat is not None:
             st.session_state.lat = lat
             st.session_state.lon = lon
-            st.success("Location found")
+            st.success("Location found using text search")
         else:
-            st.error("Location lookup failed. Try again later.")
+            st.warning("Text lookup failed — use manual coordinates below")
+
+    st.divider()
+
+    st.subheader("📌 Manual Coordinates (Always Works)")
+    manual_lat = st.number_input("Latitude", value=26.1445, format="%.6f")
+    manual_lon = st.number_input("Longitude", value=91.7362, format="%.6f")
+
+    if st.button("📌 Use Manual Coordinates"):
+        st.session_state.lat = manual_lat
+        st.session_state.lon = manual_lon
+        st.success("Manual coordinates set successfully")
 
     st.divider()
 
@@ -161,9 +157,8 @@ with st.sidebar:
 # PREDICTION LOGIC
 # -------------------------------------------------
 if predict_clicked:
-
     if st.session_state.lat is None:
-        st.error("Please find a location first.")
+        st.error("Please set a location first.")
         st.stop()
 
     river_val = 1 if river == "Yes" else 0
@@ -188,9 +183,9 @@ if st.session_state.prediction is not None:
 
     st.subheader("📊 Prediction Results")
 
-    col1, col2 = st.columns(2)
+    c1, c2 = st.columns(2)
 
-    with col1:
+    with c1:
         st.markdown("### Current Conditions")
         if st.session_state.prediction == 0:
             st.success("🟢 LOW RISK")
@@ -199,7 +194,7 @@ if st.session_state.prediction is not None:
         else:
             st.error("🔴 HIGH RISK")
 
-    with col2:
+    with c2:
         st.markdown("### Simulated Scenario")
         if st.session_state.sim_prediction == 0:
             st.success("🟢 LOW RISK")
@@ -208,9 +203,6 @@ if st.session_state.prediction is not None:
         else:
             st.error("🔴 HIGH RISK")
 
-    # -------------------------------------------------
-    # TABS
-    # -------------------------------------------------
     tab1, tab2, tab3 = st.tabs(["🗺️ Map", "🧠 Explanation", "🚨 Alerts"])
 
     with tab1:
@@ -225,13 +217,12 @@ if st.session_state.prediction is not None:
             radius=10,
             color="red",
             fill=True,
-            fill_opacity=0.8
+            fill_opacity=0.85
         ).add_to(m)
 
         st_folium(m, width=900, height=450)
 
     with tab2:
-        st.subheader("Why this prediction?")
         for e in explain_prediction(
             st.session_state.inputs["rainfall"],
             st.session_state.inputs["elevation"],
@@ -241,7 +232,6 @@ if st.session_state.prediction is not None:
             st.markdown(e)
 
     with tab3:
-        st.subheader("Safety Recommendations")
         for a in safety_recommendations(st.session_state.sim_prediction):
             st.markdown(a)
 
@@ -250,6 +240,6 @@ if st.session_state.prediction is not None:
 # -------------------------------------------------
 st.divider()
 st.caption(
-    "⚠️ For academic and demonstration purposes only • "
-    "Live deployment on Streamlit Cloud"
+    "⚠️ Academic & demonstration use only • "
+    "Designed for cloud-safe deployment"
 )
