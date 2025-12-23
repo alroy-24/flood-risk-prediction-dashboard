@@ -36,7 +36,7 @@ def geocode_location(place: str):
     url = "https://api.opencagedata.com/geocode/v1/json"
     params = {
         "q": place,
-        "key": 3288d507f4bc4050ba180fa00bcd67f7,
+        "key": api_key,
         "limit": 1,
         "no_annotations": 1,
     }
