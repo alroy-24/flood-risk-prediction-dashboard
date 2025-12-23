@@ -123,13 +123,42 @@ def safety_recommendations(level):
 # GEMINI-BASED EXPLANATION
 # -------------------------------------------------
 def gemini_explanation(pred_level, features):
-    ...
+    """
+    pred_level: 0 / 1 / 2
+    features: dict with rainfall, elevation, slope, river, location (optional)
+    """
+    risk_label = ["LOW", "MEDIUM", "HIGH"][pred_level]
+    location_text = features.get("location", "this location")
+
+    prompt = f"""
+You are an expert hydrologist. Explain the flood risk for {location_text}.
+
+Model output:
+- Flood risk level: {risk_label}
+
+Input features:
+- Rainfall (last 7 days): {features['rainfall']} mm
+- Elevation: {features['elevation']} m
+- Slope: {features['slope']} degrees
+- Near river: {"Yes" if features['river'] == 1 else "No"}
+
+In 4–6 short bullet points:
+1. Explain why this risk level makes sense.
+2. Highlight which factors most increase the risk.
+3. Mention any factors that reduce the risk.
+4. Give 2–3 practical safety suggestions for residents.
+
+Keep the explanation simple and understandable for non-technical users.
+"""
+
     client = get_gemini_client()
+    # simple version without try/except so you can see errors
     resp = client.models.generate_content(
         model="gemini-2.0-flash",
         contents=prompt,
     )
     return resp.text.strip()
+
 
 
 # -------------------------------------------------
