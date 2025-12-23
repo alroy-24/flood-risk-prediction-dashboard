@@ -22,7 +22,7 @@ st.set_page_config(
 model = joblib.load("flood_xgb_model.pkl")
 
 # -------------------------------------------------
-# SAFE GEOCODING (BEST-EFFORT, WITH CACHE & RETRY)
+# GEOCODING WITH OPENCAGE
 # -------------------------------------------------
 @functools.lru_cache(maxsize=256)
 def geocode_location(place: str):
@@ -30,41 +30,34 @@ def geocode_location(place: str):
     if not place:
         return None, None
 
+    # API key from Streamlit secrets (Settings -> Secrets or .streamlit/secrets.toml)
+    api_key = st.secrets["geocoding"]["OPENCAGE_KEY"]
+
+    url = "https://api.opencagedata.com/geocode/v1/json"
     params = {
         "q": place,
-        "format": "json",
+        "key": 3288d507f4bc4050ba180fa00bcd67f7,
         "limit": 1,
-        "addressdetails": 0,
+        "no_annotations": 1,
     }
 
-    # Use a proper, identifying User-Agent as required by Nominatim
-    # Replace the email with yours
-    headers = {
-        "User-Agent": "FloodRiskDashboard/1.0 (your_email@example.com)"
-    }
-
-    for attempt in range(2):  # small retry loop
+    for attempt in range(2):
         try:
-            r = requests.get(
-                "https://nominatim.openstreetmap.org/search",
-                params=params,
-                headers=headers,
-                timeout=8,
-            )
+            r = requests.get(url, params=params, timeout=8)
 
-            # Simple backoff if rate-limited
+            # polite handling of rate limiting
             if r.status_code == 429:
                 time.sleep(2)
                 continue
 
             r.raise_for_status()
             data = r.json()
-            if data:
-                return float(data[0]["lat"]), float(data[0]["lon"])
+            if data.get("results"):
+                geometry = data["results"][0]["geometry"]
+                return float(geometry["lat"]), float(geometry["lng"])
             break
 
         except requests.exceptions.Timeout:
-            # retry once on timeout
             time.sleep(1)
         except Exception:
             break
@@ -158,7 +151,7 @@ with st.sidebar:
 
     st.divider()
 
-    # ----------------- LOCATION SECTION -----------------
+    # -------- LOCATION SECTION --------
     st.subheader("📍 Location Search (Best Effort)")
     location_query = st.text_input(
         "City, State, Country",
