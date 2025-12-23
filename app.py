@@ -341,9 +341,9 @@ if st.session_state.prediction is not None:
             st.markdown(a)
 
     with tab4:
-    generate = st.button("Generate Gemini explanation")
+     generate = st.button("Generate Gemini explanation")
 
-    if generate:
+     if generate:
         with st.spinner("Calling Gemini..."):
             g_text = gemini_explanation(
                 st.session_state.sim_prediction,
@@ -356,7 +356,7 @@ if st.session_state.prediction is not None:
                 },
             )
         st.markdown(g_text)
-    else:
+     else:
         st.info("Click the button to generate an AI explanation once.")
 
 # -------------------------------------------------
