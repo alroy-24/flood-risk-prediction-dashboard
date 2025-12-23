@@ -24,7 +24,7 @@ st.set_page_config(
 model = joblib.load("flood_xgb_model.pkl")
 
 # -------------------------------------------------
-# CLIENTS (OPENCAGE + GEMINI)
+# CLIENTS (GEMINI)
 # -------------------------------------------------
 @functools.lru_cache(maxsize=1)
 def get_gemini_client():
@@ -152,14 +152,19 @@ Keep the explanation simple and understandable for non-technical users.
 """
 
     client = get_gemini_client()
-    # simple version without try/except so you can see errors
-    resp = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt,
-    )
-    return resp.text.strip()
-
-
+    try:
+        resp = client.models.generate_content(
+            model="gemini-2.0-flash",  # safe, public model ID
+            contents=prompt,
+        )
+        text = getattr(resp, "text", "").strip()
+        if not text:
+            text = "Gemini did not return any text."
+        return text
+    except Exception as e:
+        # Optional: log the real error for debugging
+        st.write("Gemini error:", str(e))
+        return "Gemini service is temporarily unavailable. Please check your API key and try again later."
 
 # -------------------------------------------------
 # SESSION STATE
@@ -301,7 +306,6 @@ if st.session_state.prediction is not None:
         else:
             st.error("🔴 HIGH RISK")
 
-    # Extra Gemini tab
     tab1, tab2, tab3, tab4 = st.tabs(
         ["🗺️ Map", "🧠 Rules Explanation", "🚨 Alerts", "🤖 Gemini Explanation"]
     )
