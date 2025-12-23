@@ -4,6 +4,8 @@ import joblib
 import requests
 import folium
 from streamlit_folium import st_folium
+import functools
+import time
 
 # -------------------------------------------------
 # PAGE CONFIG
@@ -20,22 +22,52 @@ st.set_page_config(
 model = joblib.load("flood_xgb_model.pkl")
 
 # -------------------------------------------------
-# SAFE GEOCODING (BEST-EFFORT)
+# SAFE GEOCODING (BEST-EFFORT, WITH CACHE & RETRY)
 # -------------------------------------------------
-def geocode_location(place):
-    try:
-        url = "https://nominatim.openstreetmap.org/search"
-        params = {"q": place, "format": "json", "limit": 1}
-        headers = {"User-Agent": "FloodRiskDashboard"}
+@functools.lru_cache(maxsize=256)
+def geocode_location(place: str):
+    place = place.strip()
+    if not place:
+        return None, None
 
-        r = requests.get(url, params=params, headers=headers, timeout=5)
-        r.raise_for_status()
-        data = r.json()
+    params = {
+        "q": place,
+        "format": "json",
+        "limit": 1,
+        "addressdetails": 0,
+    }
 
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"])
-    except Exception:
-        pass
+    # Use a proper, identifying User-Agent as required by Nominatim
+    # Replace the email with yours
+    headers = {
+        "User-Agent": "FloodRiskDashboard/1.0 (your_email@example.com)"
+    }
+
+    for attempt in range(2):  # small retry loop
+        try:
+            r = requests.get(
+                "https://nominatim.openstreetmap.org/search",
+                params=params,
+                headers=headers,
+                timeout=8,
+            )
+
+            # Simple backoff if rate-limited
+            if r.status_code == 429:
+                time.sleep(2)
+                continue
+
+            r.raise_for_status()
+            data = r.json()
+            if data:
+                return float(data[0]["lat"]), float(data[0]["lon"])
+            break
+
+        except requests.exceptions.Timeout:
+            # retry once on timeout
+            time.sleep(1)
+        except Exception:
+            break
 
     return None, None
 
@@ -126,28 +158,46 @@ with st.sidebar:
 
     st.divider()
 
+    # ----------------- LOCATION SECTION -----------------
     st.subheader("📍 Location Search (Best Effort)")
-    location_query = st.text_input("City, State, Country", "Guwahati, Assam, India")
+    location_query = st.text_input(
+        "City, State, Country",
+        "Guwahati, Assam, India",
+        help="Example: 'Mumbai, Maharashtra, India'"
+    )
 
-    if st.button("📍 Find Location"):
-        lat, lon = geocode_location(location_query)
-        if lat is not None:
+    if st.button("📍 Find / Refresh Location"):
+        with st.spinner("Looking up location..."):
+            lat, lon = geocode_location(location_query)
+
+        if lat is not None and lon is not None:
             st.session_state.lat = lat
             st.session_state.lon = lon
-            st.success("Location found using text search")
+            st.success(f"Location found: {lat:.4f}, {lon:.4f}")
         else:
-            st.warning("Text lookup failed — use manual coordinates below")
+            st.info(
+                "Could not automatically find this place. "
+                "You can still enter or adjust the coordinates below."
+            )
 
     st.divider()
 
-    st.subheader("📌 Manual Coordinates (Always Works)")
-    manual_lat = st.number_input("Latitude", value=26.1445, format="%.6f")
-    manual_lon = st.number_input("Longitude", value=91.7362, format="%.6f")
+    st.subheader("📌 Coordinates (Auto-filled)")
+    manual_lat = st.number_input(
+        "Latitude",
+        value=st.session_state.lat or 26.1445,
+        format="%.6f"
+    )
+    manual_lon = st.number_input(
+        "Longitude",
+        value=st.session_state.lon or 91.7362,
+        format="%.6f"
+    )
 
-    if st.button("📌 Use Manual Coordinates"):
+    if st.button("✅ Use These Coordinates"):
         st.session_state.lat = manual_lat
         st.session_state.lon = manual_lon
-        st.success("Manual coordinates set successfully")
+        st.success("Coordinates set successfully")
 
     st.divider()
 
@@ -157,8 +207,11 @@ with st.sidebar:
 # PREDICTION LOGIC
 # -------------------------------------------------
 if predict_clicked:
-    if st.session_state.lat is None:
-        st.error("Please set a location first.")
+    if st.session_state.lat is None or st.session_state.lon is None:
+        st.error(
+            "Please set a location first using 'Find / Refresh Location' "
+            "or by confirming the coordinates."
+        )
         st.stop()
 
     river_val = 1 if river == "Yes" else 0
