@@ -7,6 +7,8 @@ from streamlit_folium import st_folium
 import functools
 import time
 
+from google import genai  # Gemini SDK
+
 # -------------------------------------------------
 # PAGE CONFIG
 # -------------------------------------------------
@@ -22,6 +24,14 @@ st.set_page_config(
 model = joblib.load("flood_xgb_model.pkl")
 
 # -------------------------------------------------
+# CLIENTS (OPENCAGE + GEMINI)
+# -------------------------------------------------
+@functools.lru_cache(maxsize=1)
+def get_gemini_client():
+    api_key = st.secrets["gemini"]["GEMINI_API_KEY"]
+    return genai.Client(api_key=api_key)
+
+# -------------------------------------------------
 # GEOCODING WITH OPENCAGE
 # -------------------------------------------------
 @functools.lru_cache(maxsize=256)
@@ -30,7 +40,6 @@ def geocode_location(place: str):
     if not place:
         return None, None
 
-    # API key from Streamlit secrets (Settings -> Secrets or .streamlit/secrets.toml)
     api_key = st.secrets["geocoding"]["OPENCAGE_KEY"]
 
     url = "https://api.opencagedata.com/geocode/v1/json"
@@ -45,7 +54,6 @@ def geocode_location(place: str):
         try:
             r = requests.get(url, params=params, timeout=8)
 
-            # polite handling of rate limiting
             if r.status_code == 429:
                 time.sleep(2)
                 continue
@@ -65,7 +73,7 @@ def geocode_location(place: str):
     return None, None
 
 # -------------------------------------------------
-# EXPLAINABLE AI
+# EXPLAINABLE AI (RULE-BASED)
 # -------------------------------------------------
 def explain_prediction(rainfall, elevation, slope, river):
     exp = []
@@ -112,6 +120,53 @@ def safety_recommendations(level):
         ]
 
 # -------------------------------------------------
+# GEMINI-BASED EXPLANATION
+# -------------------------------------------------
+def gemini_explanation(pred_level, features):
+    """
+    pred_level: 0 / 1 / 2
+    features: dict with rainfall, elevation, slope, river, location (optional)
+    """
+    risk_label = ["LOW", "MEDIUM", "HIGH"][pred_level]
+
+    location_text = features.get("location", "this location")
+
+    prompt = f"""
+You are an expert hydrologist. Explain the flood risk for {location_text}.
+
+Model output:
+- Flood risk level: {risk_label}
+
+Input features:
+- Rainfall (last 7 days): {features['rainfall']} mm
+- Elevation: {features['elevation']} m
+- Slope: {features['slope']} degrees
+- Near river: {"Yes" if features['river'] == 1 else "No"}
+
+In 4–6 short bullet points:
+1. Explain why this risk level makes sense.
+2. Highlight which factors most increase the risk.
+3. Mention any factors that reduce the risk.
+4. Give 2–3 practical safety suggestions for residents.
+
+Keep the explanation simple and understandable for non-technical users.
+"""
+
+    client = get_gemini_client()
+    try:
+        resp = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+        text = getattr(resp, "text", "").strip()
+        if not text:
+            text = "Gemini could not generate an explanation at the moment."
+    except Exception:
+        text = "Gemini service is temporarily unavailable. Please try again later."
+
+    return text
+
+# -------------------------------------------------
 # SESSION STATE
 # -------------------------------------------------
 if "prediction" not in st.session_state:
@@ -120,6 +175,7 @@ if "prediction" not in st.session_state:
     st.session_state.lat = None
     st.session_state.lon = None
     st.session_state.inputs = {}
+    st.session_state.location_label = "Selected location"
 
 # -------------------------------------------------
 # HEADER
@@ -128,7 +184,7 @@ st.markdown("""
 # 🌊 Flood Risk Prediction Dashboard
 **AI-powered flood risk assessment using satellite-derived data and machine learning**
 """)
-st.caption("Built using Google Earth Engine, XGBoost & Streamlit")
+st.caption("Built using Google Earth Engine, XGBoost, Streamlit, OpenCage & Gemini")
 st.divider()
 
 # -------------------------------------------------
@@ -166,6 +222,7 @@ with st.sidebar:
         if lat is not None and lon is not None:
             st.session_state.lat = lat
             st.session_state.lon = lon
+            st.session_state.location_label = location_query
             st.success(f"Location found: {lat:.4f}, {lon:.4f}")
         else:
             st.info(
@@ -249,7 +306,10 @@ if st.session_state.prediction is not None:
         else:
             st.error("🔴 HIGH RISK")
 
-    tab1, tab2, tab3 = st.tabs(["🗺️ Map", "🧠 Explanation", "🚨 Alerts"])
+    # Extra Gemini tab
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["🗺️ Map", "🧠 Rules Explanation", "🚨 Alerts", "🤖 Gemini Explanation"]
+    )
 
     with tab1:
         m = folium.Map(
@@ -280,6 +340,20 @@ if st.session_state.prediction is not None:
     with tab3:
         for a in safety_recommendations(st.session_state.sim_prediction):
             st.markdown(a)
+
+    with tab4:
+        with st.spinner("Generating AI explanation with Gemini..."):
+            g_text = gemini_explanation(
+                st.session_state.sim_prediction,
+                {
+                    "rainfall": st.session_state.inputs["rainfall"],
+                    "elevation": st.session_state.inputs["elevation"],
+                    "slope": st.session_state.inputs["slope"],
+                    "river": st.session_state.inputs["river"],
+                    "location": st.session_state.location_label,
+                },
+            )
+        st.markdown(g_text)
 
 # -------------------------------------------------
 # FOOTER
