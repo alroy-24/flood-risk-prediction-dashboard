@@ -253,7 +253,7 @@ if st.session_state.prediction is not None:
             st.markdown(a)
 
     with tab4:
-    if not st.session_state.gemini_called:
+     if not st.session_state.gemini_called:
         if st.button("Generate Gemini explanation"):
             with st.spinner("Generating explanation..."):
                 try:
@@ -268,9 +268,11 @@ if st.session_state.prediction is not None:
                     )
                     st.session_state.gemini_called = True
 
-    if st.session_state.gemini_called:
+     if st.session_state.gemini_called:
         st.markdown(st.session_state.gemini_text)
         st.caption("Gemini explanation generated once per prediction.")
+
+     
 
 
 # -------------------------------------------------
