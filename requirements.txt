@@ -6,4 +6,4 @@ xgboost
 folium
 streamlit-folium
 requests
-google-genai
+google-generativeai
