@@ -329,13 +329,8 @@ The ML model supports **what-if rainfall simulations**:
 
 ---
 
-### ✅ Why This ML Design Is Effective
 
-- Uses physically meaningful environmental features
-- Avoids reliance on black-box LLM APIs
-- Prioritizes explainability and trust
-- Stable for cloud deployment
-- Suitable for real-world disaster management applications
+
 
 
 
