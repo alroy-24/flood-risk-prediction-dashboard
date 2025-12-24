@@ -1,107 +1,203 @@
 # 🌊 Flood Risk Prediction & Decision Support System
 
-An end-to-end AI-powered flood risk prediction system that combines satellite-derived data, machine learning, explainable AI, and interactive geospatial visualization to support disaster preparedness and decision-making.
-
-Built as part of a Google Developer Group (GDG) Hackathon.
+An **AI-powered flood risk assessment dashboard** that predicts flood vulnerability, simulates extreme rainfall scenarios, explains risk factors, and provides safety recommendations — built for **reliability, explainability, and real-world deployment**.
 
 ---
 
-## 🚀 Key Features
+## 🚀 Project Overview
 
-- Flood risk classification using a trained XGBoost model
-- Location-based analysis with interactive map visualization
-- Explainable AI panel explaining prediction drivers
-- What-if rainfall simulation for scenario-based risk assessment
-- Risk-based alerts and safety recommendations
-- Persistent and interactive Streamlit dashboard
+Flooding is one of the most damaging climate-related disasters, especially in regions like India. While satellite data exists, most flood-warning systems lack:
 
----
+- Localized predictions  
+- Scenario-based analysis  
+- Explainable AI outputs  
+- Reliable deployment  
 
-## 🛰️ Data & Technology Stack
-
-**Data Sources**
-- Satellite-derived rainfall and terrain features
-- Terrain elevation, slope, and river proximity (Google Earth Engine)
-
-**Technologies Used**
-- Programming: Python
-- Machine Learning: XGBoost
-- Data Processing: NumPy, Pandas
-- Visualization: Streamlit, Folium
-- Geocoding: OpenStreetMap (Nominatim API)
-- Deployment: Streamlit
+This project addresses these gaps by combining **satellite-derived data**, **machine learning**, **what-if simulations**, and **geospatial visualization** into a single decision-support system.
 
 ---
 
-## 🧠 How the System Works
+## ✨ Key Features
 
-1. User searches for a geographic location
-2. Inputs rainfall and terrain parameters
-3. Model predicts flood risk level (Low / Medium / High)
-4. System explains key contributing factors
-5. Users simulate rainfall changes to assess risk escalation
-6. Safety alerts and recommendations are generated
+### 📍 Location Handling
+- Place-name search (cloud-safe)
+- Manual latitude & longitude input (always reliable)
+- Designed for satellite-based workflows
 
 ---
 
-## 🌧️ What-If Rainfall Simulation
-
-The system allows users to simulate future rainfall scenarios by adjusting rainfall levels and observing how flood risk changes. This supports:
-- Climate uncertainty analysis
-- Emergency preparedness
-- Risk escalation assessment
-
----
-
-## 📍 Use Cases
-
-- Disaster risk assessment
-- Emergency response planning
-- Urban and infrastructure planning
-- Climate impact analysis
-- Smart city decision-support systems
+### 🤖 Flood Risk Prediction (Core AI)
+- Predicts **Low / Medium / High flood risk**
+- Uses environmental features:
+  - Rainfall
+  - Elevation
+  - Terrain slope
+  - River proximity
+- Powered by a trained **machine learning classifier**
 
 ---
 
-
-⚠️ Limitations & Future Improvements
-
-- Currently uses simulated rainfall inputs rather than live forecasts
-- Can be extended with real-time weather APIs
-- Integration with government flood warning systems
-- Expansion to multi-location batch risk analysis
+### 🌧️ What-If Rainfall Simulation ⭐
+- Simulate increased or decreased rainfall
+- Instantly observe changes in flood risk
+- Enables **worst-case scenario analysis**
+- Transforms prediction into **planning & preparedness**
 
 ---
 
+### 🗺️ Interactive Map Visualization
+- Displays prediction results spatially
+- Helps identify vulnerable regions quickly
 
-▶️ Run Locally
+---
+
+### 🧠 Explainable AI (Transparency)
+- Rule-based explanations for each prediction
+- Clearly shows **why** a region is at risk
+- Essential for safety-critical systems like disaster management
+
+---
+
+### ✨ AI Explanation Layer (Pre-Generated)
+- Natural-language explanations generated during development
+- Dynamically displayed based on prediction
+- **No live API calls** → stable & demo-safe
+
+---
+
+### 🚨 Alerts & Safety Recommendations
+- Contextual safety advice based on risk level
+- Bridges the gap between AI output and real-world action
+
+---
+
+## 🧰 Technologies Used (Detailed)
+
+### 🛰️ Google Technologies
+- **Google Earth Engine (GEE)**  
+  Used for processing satellite-derived rainfall and terrain data such as elevation and slope.  
+  Enabled large-scale geospatial analysis for flood-risk modeling.
+
+- **Google Cloud Infrastructure**  
+  Deployment backend via Streamlit Cloud.
+
+---
+
+### 🤖 Artificial Intelligence & Machine Learning
+
+- **Machine Learning Model**
+  - Supervised classification model
+  - Outputs: Low / Medium / High flood risk
+  - Input features: rainfall, elevation, slope, river proximity
+
+- **Explainable AI (XAI)**
+  - Rule-based logic to interpret model predictions
+  - Ensures transparency and trust
+
+- **What-If Scenario Simulation**
+  - Evaluates flood risk under hypothetical rainfall changes
+  - Enables proactive disaster planning
+
+---
+
+### 🗺️ Visualization & Deployment
+- Streamlit
+- Folium (interactive maps)
+- Python
+
+---
+
 # Clone the repository
-git clone https://github.com/alroy-24/flood-risk-prediction-dashboard.git
+git clone https://github.com/YOUR_USERNAME/flood-risk-prediction-dashboard.git
 cd flood-risk-prediction-dashboard
+
+# Create virtual environment (optional)
+python -m venv venv
+venv\Scripts\activate   # Windows
+# source venv/bin/activate  # macOS/Linux
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the Streamlit app
+# Run the app
 streamlit run app.py
-
 
 ---
 
-⚠️ Notes
+## 🏗️ System Architecture
 
-- Ensure Python 3.9 or above is installed
+### 🔹 High-Level Architecture
 
-- Internet connection required for location search (OpenStreetMap)
-
-- Model file (flood_xgb_model.pkl) must be present in the project root
-
-
-
-
-
-
-
+```text
+┌──────────────────────────┐
+│   Google Earth Engine    │
+│  (Satellite & Terrain)  │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│  Feature Engineering     │
+│  • Rainfall              │
+│  • Elevation (DEM)       │
+│  • Terrain Slope         │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│  Machine Learning Model  │
+│  • Flood Risk Classifier │
+│  • Low / Medium / High   │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│  Streamlit Dashboard     │
+│  • Prediction            │
+│  • Simulation            │
+│  • Map Visualization     │
+│  • Explanations & Alerts │
+└──────────────────────────┘
+Satellite Data
+ (Rainfall, DEM)
+        │
+        ▼
+Google Earth Engine
+        │
+        ▼
+Preprocessing & Aggregation
+        │
+        ▼
+Feature Dataset
+        │
+        ▼
+ML Model Training
+        │
+        ▼
+Saved Model (.pkl)
+User
+ │
+ ▼
+Streamlit Web Interface
+ │
+ ├─ Location Input
+ │    • Place Name
+ │    • Manual Coordinates
+ │
+ ├─ Environmental Inputs
+ │    • Rainfall
+ │    • Elevation
+ │    • Slope
+ │    • River Proximity
+ │
+ ├─ What-If Rainfall Simulation
+ │
+ ▼
+Flood Risk Prediction
+ │
+ ├─ Map Visualization
+ ├─ Explainable AI Rules
+ ├─ AI Explanation (Pre-generated)
+ └─ Safety Recommendations
 
 
 
