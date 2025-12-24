@@ -108,7 +108,7 @@ This project addresses these gaps by combining **satellite-derived data**, **mac
 ---
 
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/flood-risk-prediction-dashboard.git
+git clone https://github.com/alroy-24/flood-risk-prediction-dashboard.git
 cd flood-risk-prediction-dashboard
 
 # Create virtual environment (optional)
@@ -157,6 +157,15 @@ streamlit run app.py
 │  • Map Visualization     │
 │  • Explanations & Alerts │
 └──────────────────────────┘
+
+
+
+```
+
+##🔹 Data Processing & ML Pipeline
+```text
+
+
 Satellite Data
  (Rainfall, DEM)
         │
@@ -174,6 +183,12 @@ ML Model Training
         │
         ▼
 Saved Model (.pkl)
+
+```
+🔹 User Interaction Flow
+
+```text
+
 User
  │
  ▼
@@ -198,6 +213,127 @@ Flood Risk Prediction
  ├─ Explainable AI Rules
  ├─ AI Explanation (Pre-generated)
  └─ Safety Recommendations
+
+```
+
+## 🤖 Machine Learning Module
+
+The Machine Learning (ML) module is the core intelligence of the system, responsible for learning flood-risk patterns from satellite-derived environmental data and generating predictions used by the dashboard.
+
+---
+
+### 🎯 Objective
+
+The primary objective of the ML module is to:
+
+- Learn relationships between environmental conditions and flood occurrence
+- Classify flood risk into:
+  - **Low**
+  - **Medium**
+  - **High**
+- Provide a **reliable and interpretable model** suitable for disaster-related decision support
+
+---
+
+### 🛰️ Data Source & Features
+
+#### Data Source
+- Satellite-derived data processed using **Google Earth Engine**
+- Aggregated environmental features at the location level
+
+#### Input Features
+The model uses the following physically meaningful features:
+
+| Feature | Description |
+|------|-------------|
+| Rainfall | Recent cumulative rainfall |
+| Elevation | Height above sea level (DEM) |
+| Terrain Slope | Gradient of terrain |
+| River Proximity | Binary indicator of nearby river |
+
+These features are chosen due to their **direct influence on flood formation**.
+
+---
+
+### 🔄 Data Preprocessing
+
+The preprocessing stage includes:
+
+- Handling missing or inconsistent values
+- Selecting relevant environmental features
+- Encoding target labels (Low / Medium / High risk)
+- Splitting data into training and testing sets
+
+This ensures the model generalizes well to unseen data.
+
+---
+
+### 🧠 Model Selection & Training
+
+- A **supervised classification model** is trained on the processed dataset
+- The model is optimized for:
+  - Prediction accuracy
+  - Robustness across risk classes
+  - Interpretability
+- Training includes hyperparameter tuning to avoid overfitting
+
+The selected model is well-suited for **tabular environmental data with non-linear relationships**.
+
+---
+
+### 📊 Model Evaluation
+
+Model performance is evaluated using:
+
+- Classification accuracy
+- Confusion matrix
+- Risk-wise prediction consistency
+
+This validation ensures the model behaves reliably before deployment.
+
+---
+
+### 🔍 Explainability & Interpretability
+
+To avoid black-box behavior:
+
+- Feature contributions are analyzed
+- Rule-based explanations are derived from model behavior
+- Key factors such as rainfall intensity, elevation, slope, and river proximity are highlighted
+
+This supports **Explainable AI (XAI)**, which is critical for safety-critical systems like flood prediction.
+
+---
+
+### 📦 Model Export & Deployment
+
+- The trained model is serialized using `joblib`
+- Saved as a `.pkl` file
+- Loaded directly by the Streamlit application for real-time inference
+
+No retraining occurs during deployment, ensuring **fast and stable predictions**.
+
+---
+
+### 🌧️ Scenario-Based Prediction (What-If Simulation)
+
+The ML model supports **what-if rainfall simulations**:
+
+- Rainfall values can be adjusted dynamically
+- The same trained model predicts flood risk under hypothetical conditions
+- Enables **worst-case scenario analysis and preparedness planning**
+
+---
+
+### ✅ Why This ML Design Is Effective
+
+- Uses physically meaningful environmental features
+- Avoids reliance on black-box LLM APIs
+- Prioritizes explainability and trust
+- Stable for cloud deployment
+- Suitable for real-world disaster management applications
+
+
 
 
 
