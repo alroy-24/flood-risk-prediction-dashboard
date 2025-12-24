@@ -6,6 +6,8 @@ import folium
 from streamlit_folium import st_folium
 import google.generativeai as genai
 
+OPENCAGE_KEY = st.secrets["geocoding"]["OPENCAGE_KEY"]
+
 # -------------------------------------------------
 # PAGE CONFIG
 # -------------------------------------------------
@@ -23,7 +25,7 @@ model = joblib.load("flood_xgb_model.pkl")
 # -------------------------------------------------
 # GEMINI SETUP
 # -------------------------------------------------
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+genai.configure(api_key=st.secrets["gemini"]["GEMINI_API_KEY"])
 gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
 # -------------------------------------------------
@@ -31,17 +33,27 @@ gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 # -------------------------------------------------
 def geocode_location(place):
     try:
-        url = "https://nominatim.openstreetmap.org/search"
-        params = {"q": place, "format": "json", "limit": 1}
-        headers = {"User-Agent": "FloodRiskDashboard"}
-        r = requests.get(url, params=params, headers=headers, timeout=5)
-        r.raise_for_status()
-        data = r.json()
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"])
+        url = "https://api.opencagedata.com/geocode/v1/json"
+        params = {
+            "q": place,
+            "key": OPENCAGE_KEY,
+            "limit": 1,
+            "no_annotations": 1,
+        }
+
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        if data["results"]:
+            lat = data["results"][0]["geometry"]["lat"]
+            lng = data["results"][0]["geometry"]["lng"]
+            return lat, lng
+
     except Exception:
-        pass
-    return None, None
+        return None, None
+
+   
 
 # -------------------------------------------------
 # RULE-BASED EXPLANATION
