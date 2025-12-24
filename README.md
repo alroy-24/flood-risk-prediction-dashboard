@@ -106,6 +106,7 @@ This project addresses these gaps by combining **satellite-derived data**, **mac
 - Python
 
 ---
+###▶️ Run Locally
 
 # Clone the repository
 git clone https://github.com/alroy-24/flood-risk-prediction-dashboard.git
@@ -332,6 +333,7 @@ The ML model supports **what-if rainfall simulations**:
 - Prioritizes explainability and trust
 - Stable for cloud deployment
 - Suitable for real-world disaster management applications
+
 
 
 
