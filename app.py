@@ -8,6 +8,11 @@ import google.generativeai as genai
 
 OPENCAGE_KEY = st.secrets["geocoding"]["OPENCAGE_KEY"]
 
+if "gemini_called" not in st.session_state:
+    st.session_state.gemini_called = False
+    st.session_state.gemini_text = ""
+
+
 # -------------------------------------------------
 # PAGE CONFIG
 # -------------------------------------------------
@@ -248,18 +253,25 @@ if st.session_state.prediction is not None:
             st.markdown(a)
 
     with tab4:
-        if not st.session_state.gemini_generated:
-            if st.button("Generate Gemini explanation"):
-                with st.spinner("Calling Gemini..."):
+    if not st.session_state.gemini_called:
+        if st.button("Generate Gemini explanation"):
+            with st.spinner("Generating explanation..."):
+                try:
                     st.session_state.gemini_text = gemini_explanation(
                         st.session_state.sim_prediction,
                         st.session_state.inputs
                     )
-                    st.session_state.gemini_generated = True
+                    st.session_state.gemini_called = True
+                except Exception:
+                    st.session_state.gemini_text = (
+                        "⚠️ Gemini service temporarily unavailable due to quota limits."
+                    )
+                    st.session_state.gemini_called = True
 
-        if st.session_state.gemini_generated:
-            st.markdown(st.session_state.gemini_text)
-            st.caption("Gemini explanation is generated once per prediction to conserve API quota.")
+    if st.session_state.gemini_called:
+        st.markdown(st.session_state.gemini_text)
+        st.caption("Gemini explanation generated once per prediction.")
+
 
 # -------------------------------------------------
 # FOOTER
