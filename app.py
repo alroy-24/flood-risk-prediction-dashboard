@@ -24,7 +24,7 @@ model = joblib.load("flood_xgb_model.pkl")
 # GEMINI SETUP
 # -------------------------------------------------
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
 # -------------------------------------------------
 # SAFE GEOCODING
