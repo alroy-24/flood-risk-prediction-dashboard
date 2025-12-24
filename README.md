@@ -254,6 +254,9 @@ The model uses the following physically meaningful features:
 
 These features are chosen due to their **direct influence on flood formation**.
 
+<img width="943" height="583" alt="image" src="https://github.com/user-attachments/assets/61a02430-89ce-45a7-92c6-f25035dc0215" />
+
+
 ---
 
 ### 🔄 Data Preprocessing
@@ -333,6 +336,7 @@ The ML model supports **what-if rainfall simulations**:
 - Prioritizes explainability and trust
 - Stable for cloud deployment
 - Suitable for real-world disaster management applications
+
 
 
 
