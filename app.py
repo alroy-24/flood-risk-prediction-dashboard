@@ -4,10 +4,7 @@ import joblib
 import requests
 import folium
 from streamlit_folium import st_folium
-import functools
-import time
-
-from google import genai  # Gemini SDK
+import google.generativeai as genai
 
 # -------------------------------------------------
 # PAGE CONFIG
@@ -24,76 +21,43 @@ st.set_page_config(
 model = joblib.load("flood_xgb_model.pkl")
 
 # -------------------------------------------------
-# CLIENTS (GEMINI)
+# GEMINI SETUP
 # -------------------------------------------------
-@functools.lru_cache(maxsize=1)
-def get_gemini_client():
-    api_key = st.secrets["gemini"]["GEMINI_API_KEY"]
-    return genai.Client(api_key=api_key)
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+gemini_model = genai.GenerativeModel("gemini-2.0-flash")
 
 # -------------------------------------------------
-# GEOCODING WITH OPENCAGE
+# SAFE GEOCODING
 # -------------------------------------------------
-@functools.lru_cache(maxsize=256)
-def geocode_location(place: str):
-    place = place.strip()
-    if not place:
-        return None, None
-
-    api_key = st.secrets["geocoding"]["OPENCAGE_KEY"]
-
-    url = "https://api.opencagedata.com/geocode/v1/json"
-    params = {
-        "q": place,
-        "key": api_key,
-        "limit": 1,
-        "no_annotations": 1,
-    }
-
-    for attempt in range(2):
-        try:
-            r = requests.get(url, params=params, timeout=8)
-
-            if r.status_code == 429:
-                time.sleep(2)
-                continue
-
-            r.raise_for_status()
-            data = r.json()
-            if data.get("results"):
-                geometry = data["results"][0]["geometry"]
-                return float(geometry["lat"]), float(geometry["lng"])
-            break
-
-        except requests.exceptions.Timeout:
-            time.sleep(1)
-        except Exception:
-            break
-
+def geocode_location(place):
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {"q": place, "format": "json", "limit": 1}
+        headers = {"User-Agent": "FloodRiskDashboard"}
+        r = requests.get(url, params=params, headers=headers, timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        pass
     return None, None
 
 # -------------------------------------------------
-# EXPLAINABLE AI (RULE-BASED)
+# RULE-BASED EXPLANATION
 # -------------------------------------------------
 def explain_prediction(rainfall, elevation, slope, river):
     exp = []
-
     if rainfall > 120:
         exp.append("• Very high rainfall significantly increases flood risk.")
     elif rainfall > 80:
-        exp.append("• Moderate rainfall contributes to surface water accumulation.")
-
+        exp.append("• Moderate rainfall contributes to flood risk.")
     if elevation < 30:
         exp.append("• Low elevation makes the area flood-prone.")
-    elif elevation < 50:
-        exp.append("• Relatively low elevation increases vulnerability.")
-
-    if river == 1:
-        exp.append("• Proximity to a river increases overflow probability.")
-
     if slope < 1:
         exp.append("• Flat terrain slows natural drainage.")
-
+    if river == 1:
+        exp.append("• Proximity to a river increases overflow probability.")
     return exp
 
 # -------------------------------------------------
@@ -101,70 +65,40 @@ def explain_prediction(rainfall, elevation, slope, river):
 # -------------------------------------------------
 def safety_recommendations(level):
     if level == 0:
-        return [
-            "• No immediate flood threat detected.",
-            "• Stay informed with weather updates."
-        ]
+        return ["• No immediate flood threat detected."]
     elif level == 1:
         return [
-            "• Avoid low-lying and flood-prone roads.",
-            "• Secure valuables and important documents.",
-            "• Monitor rainfall and river-level alerts."
+            "• Avoid low-lying roads.",
+            "• Monitor rainfall alerts."
         ]
     else:
         return [
             "• High flood risk detected.",
-            "• Prepare for evacuation if advised.",
-            "• Avoid travel near rivers and waterlogged areas.",
-            "• Follow official disaster-management advisories."
+            "• Prepare for evacuation.",
+            "• Follow disaster management advisories."
         ]
 
 # -------------------------------------------------
-# GEMINI-BASED EXPLANATION
+# GEMINI EXPLANATION (QUOTA SAFE)
 # -------------------------------------------------
-def gemini_explanation(pred_level, features):
-    """
-    pred_level: 0 / 1 / 2
-    features: dict with rainfall, elevation, slope, river, location (optional)
-    """
-    risk_label = ["LOW", "MEDIUM", "HIGH"][pred_level]
-    location_text = features.get("location", "this location")
-
+def gemini_explanation(prediction, features):
+    risk_map = {0: "LOW", 1: "MEDIUM", 2: "HIGH"}
     prompt = f"""
-You are an expert hydrologist. Explain the flood risk for {location_text}.
+Explain flood risk assessment in simple terms.
 
-Model output:
-- Flood risk level: {risk_label}
+Risk Level: {risk_map[prediction]}
+Rainfall: {features['rainfall']} mm
+Elevation: {features['elevation']} m
+Slope: {features['slope']}°
+Near River: {features['river']}
 
-Input features:
-- Rainfall (last 7 days): {features['rainfall']} mm
-- Elevation: {features['elevation']} m
-- Slope: {features['slope']} degrees
-- Near river: {"Yes" if features['river'] == 1 else "No"}
-
-In 4–6 short bullet points:
-1. Explain why this risk level makes sense.
-2. Highlight which factors most increase the risk.
-3. Mention any factors that reduce the risk.
-4. Give 2–3 practical safety suggestions for residents.
-
-Keep the explanation simple and understandable for non-technical users.
+Explain clearly for disaster preparedness.
 """
-
-    client = get_gemini_client()
     try:
-        resp = client.models.generate_content(
-            model="gemini-2.0-flash",  # safe, public model ID
-            contents=prompt,
-        )
-        text = getattr(resp, "text", "").strip()
-        if not text:
-            text = "Gemini did not return any text."
-        return text
-    except Exception as e:
-        # Optional: log the real error for debugging
-        st.write("Gemini error:", str(e))
-        return "Gemini service is temporarily unavailable. Please check your API key and try again later."
+        response = gemini_model.generate_content(prompt)
+        return response.text
+    except Exception:
+        return "⚠️ Gemini explanation unavailable due to API quota limits."
 
 # -------------------------------------------------
 # SESSION STATE
@@ -175,7 +109,8 @@ if "prediction" not in st.session_state:
     st.session_state.lat = None
     st.session_state.lon = None
     st.session_state.inputs = {}
-    st.session_state.location_label = "Selected location"
+    st.session_state.gemini_generated = False
+    st.session_state.gemini_text = ""
 
 # -------------------------------------------------
 # HEADER
@@ -184,84 +119,57 @@ st.markdown("""
 # 🌊 Flood Risk Prediction Dashboard
 **AI-powered flood risk assessment using satellite-derived data and machine learning**
 """)
-st.caption("Built using Google Earth Engine, XGBoost, Streamlit, OpenCage & Gemini")
+st.caption("Built using Google Earth Engine, XGBoost, Gemini & Streamlit")
 st.divider()
 
 # -------------------------------------------------
-# SIDEBAR INPUTS
+# SIDEBAR
 # -------------------------------------------------
 with st.sidebar:
     st.header("📥 Input Parameters")
 
-    rainfall = st.slider("Observed rainfall (last 7 days, mm)", 0, 300, 120)
+    rainfall = st.slider("Rainfall (last 7 days, mm)", 0, 300, 120)
     elevation = st.slider("Elevation (meters)", 0, 500, 30)
     slope = st.slider("Slope (degrees)", 0.0, 20.0, 1.0)
     river = st.selectbox("Near a river?", ["No", "Yes"])
 
     st.divider()
-
     st.subheader("🌧️ What-If Rainfall Simulation")
     rainfall_delta = st.slider("Rainfall change (mm)", -50, 100, 0)
     simulated_rainfall = max(0, rainfall + rainfall_delta)
-    st.caption(f"Scenario rainfall: **{simulated_rainfall} mm**")
 
     st.divider()
+    st.subheader("📍 Location Search (Best effort)")
+    location_query = st.text_input("City, State, Country", "Guwahati, Assam, India")
 
-    # -------- LOCATION SECTION --------
-    st.subheader("📍 Location Search (Best Effort)")
-    location_query = st.text_input(
-        "City, State, Country",
-        "Guwahati, Assam, India",
-        help="Example: 'Mumbai, Maharashtra, India'"
-    )
-
-    if st.button("📍 Find / Refresh Location"):
-        with st.spinner("Looking up location..."):
-            lat, lon = geocode_location(location_query)
-
-        if lat is not None and lon is not None:
+    if st.button("📍 Find Location"):
+        lat, lon = geocode_location(location_query)
+        if lat:
             st.session_state.lat = lat
             st.session_state.lon = lon
-            st.session_state.location_label = location_query
-            st.success(f"Location found: {lat:.4f}, {lon:.4f}")
+            st.success("Location found")
         else:
-            st.info(
-                "Could not automatically find this place. "
-                "You can still enter or adjust the coordinates below."
-            )
+            st.warning("Text search failed. Use manual coordinates below.")
 
     st.divider()
+    st.subheader("📌 Manual Coordinates (Reliable)")
+    manual_lat = st.number_input("Latitude", value=26.1445, format="%.6f")
+    manual_lon = st.number_input("Longitude", value=91.7362, format="%.6f")
 
-    st.subheader("📌 Coordinates (Auto-filled)")
-    manual_lat = st.number_input(
-        "Latitude",
-        value=st.session_state.lat or 26.1445,
-        format="%.6f"
-    )
-    manual_lon = st.number_input(
-        "Longitude",
-        value=st.session_state.lon or 91.7362,
-        format="%.6f"
-    )
-
-    if st.button("✅ Use These Coordinates"):
+    if st.button("📌 Use Manual Coordinates"):
         st.session_state.lat = manual_lat
         st.session_state.lon = manual_lon
-        st.success("Coordinates set successfully")
+        st.success("Coordinates set")
 
     st.divider()
-
     predict_clicked = st.button("🚨 Predict Flood Risk")
 
 # -------------------------------------------------
-# PREDICTION LOGIC
+# PREDICTION
 # -------------------------------------------------
 if predict_clicked:
-    if st.session_state.lat is None or st.session_state.lon is None:
-        st.error(
-            "Please set a location first using 'Find / Refresh Location' "
-            "or by confirming the coordinates."
-        )
+    if st.session_state.lat is None:
+        st.error("Please set a location first.")
         st.stop()
 
     river_val = 1 if river == "Yes" else 0
@@ -276,38 +184,33 @@ if predict_clicked:
         "rainfall": simulated_rainfall,
         "elevation": elevation,
         "slope": slope,
-        "river": river_val
+        "river": river_val,
     }
+
+    st.session_state.gemini_generated = False
+    st.session_state.gemini_text = ""
 
 # -------------------------------------------------
 # RESULTS
 # -------------------------------------------------
 if st.session_state.prediction is not None:
 
-    st.subheader("📊 Prediction Results")
+    col1, col2 = st.columns(2)
 
-    c1, c2 = st.columns(2)
+    with col1:
+        st.subheader("Current Conditions")
+        st.success("LOW RISK" if st.session_state.prediction == 0 else
+                   "MEDIUM RISK" if st.session_state.prediction == 1 else
+                   "HIGH RISK")
 
-    with c1:
-        st.markdown("### Current Conditions")
-        if st.session_state.prediction == 0:
-            st.success("🟢 LOW RISK")
-        elif st.session_state.prediction == 1:
-            st.warning("🟡 MEDIUM RISK")
-        else:
-            st.error("🔴 HIGH RISK")
-
-    with c2:
-        st.markdown("### Simulated Scenario")
-        if st.session_state.sim_prediction == 0:
-            st.success("🟢 LOW RISK")
-        elif st.session_state.sim_prediction == 1:
-            st.warning("🟡 MEDIUM RISK")
-        else:
-            st.error("🔴 HIGH RISK")
+    with col2:
+        st.subheader("Simulated Scenario")
+        st.success("LOW RISK" if st.session_state.sim_prediction == 0 else
+                   "MEDIUM RISK" if st.session_state.sim_prediction == 1 else
+                   "HIGH RISK")
 
     tab1, tab2, tab3, tab4 = st.tabs(
-        ["🗺️ Map", "🧠 Rules Explanation", "🚨 Alerts", "🤖 Gemini Explanation"]
+        ["🗺️ Map", "📜 Rules Explanation", "🚨 Alerts", "✨ Gemini Explanation"]
     )
 
     with tab1:
@@ -316,24 +219,16 @@ if st.session_state.prediction is not None:
             zoom_start=6,
             tiles="CartoDB dark_matter"
         )
-
         folium.CircleMarker(
             location=[st.session_state.lat, st.session_state.lon],
             radius=10,
             color="red",
-            fill=True,
-            fill_opacity=0.85
+            fill=True
         ).add_to(m)
-
         st_folium(m, width=900, height=450)
 
     with tab2:
-        for e in explain_prediction(
-            st.session_state.inputs["rainfall"],
-            st.session_state.inputs["elevation"],
-            st.session_state.inputs["slope"],
-            st.session_state.inputs["river"]
-        ):
+        for e in explain_prediction(**st.session_state.inputs):
             st.markdown(e)
 
     with tab3:
@@ -341,29 +236,21 @@ if st.session_state.prediction is not None:
             st.markdown(a)
 
     with tab4:
-     generate = st.button("Generate Gemini explanation")
+        if not st.session_state.gemini_generated:
+            if st.button("Generate Gemini explanation"):
+                with st.spinner("Calling Gemini..."):
+                    st.session_state.gemini_text = gemini_explanation(
+                        st.session_state.sim_prediction,
+                        st.session_state.inputs
+                    )
+                    st.session_state.gemini_generated = True
 
-     if generate:
-        with st.spinner("Calling Gemini..."):
-            g_text = gemini_explanation(
-                st.session_state.sim_prediction,
-                {
-                    "rainfall": st.session_state.inputs["rainfall"],
-                    "elevation": st.session_state.inputs["elevation"],
-                    "slope": st.session_state.inputs["slope"],
-                    "river": st.session_state.inputs["river"],
-                    "location": st.session_state.location_label,
-                },
-            )
-        st.markdown(g_text)
-     else:
-        st.info("Click the button to generate an AI explanation once.")
+        if st.session_state.gemini_generated:
+            st.markdown(st.session_state.gemini_text)
+            st.caption("Gemini explanation is generated once per prediction to conserve API quota.")
 
 # -------------------------------------------------
 # FOOTER
 # -------------------------------------------------
 st.divider()
-st.caption(
-    "⚠️ Academic & demonstration use only • "
-    "Designed for cloud-safe deployment"
-)
+st.caption("⚠️ Academic & demonstration use only • Cloud-safe deployment")
